@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
 
 [phases.install]
-cmds = ["npm install", "cd admin && npm install"]
+cmds = ["npm install --production=false", "cd admin && npm install --production=false"]
 
 [phases.build]
 cmds = ["cd admin && npm run build"]
