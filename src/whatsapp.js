@@ -7,7 +7,8 @@ const fs = require('fs');
 // ===================== MULTI SESSION MANAGER =====================
 
 const sessions = new Map(); // sessionId -> { sock, status, qrBase64, name }
-const AUTH_BASE = path.join(__dirname, '..', 'sessions', 'wa');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const AUTH_BASE = path.join(DATA_DIR, 'sessions', 'wa');
 
 if (!fs.existsSync(AUTH_BASE)) fs.mkdirSync(AUTH_BASE, { recursive: true });
 

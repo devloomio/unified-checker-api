@@ -1,7 +1,16 @@
 require('dotenv').config();
+
+// Initialize database (runs migrations)
+require('./db');
+
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const corsMiddleware = require('./middleware/cors');
 const authMiddleware = require('./middleware/auth');
+const rateLimiter = require('./middleware/rateLimiter');
+const usageTracker = require('./middleware/usageTracker');
+const adminRouter = require('./routes/admin');
 const waRouter = require('./routes/wa');
 const tgRouter = require('./routes/tg');
 const { getStatus: getWaStatus, autoLoadSessions: autoLoadWa } = require('./whatsapp');
@@ -16,9 +25,21 @@ app.use(express.urlencoded({ extended: true }));
 
 // Global middleware
 app.use(corsMiddleware);
-app.use(authMiddleware);
 
-// Routes
+// Serve admin SPA static files (BEFORE auth middleware)
+const adminBuildPath = path.join(__dirname, '..', 'admin', 'dist');
+if (fs.existsSync(adminBuildPath)) {
+  app.use(express.static(adminBuildPath));
+}
+
+// Admin routes (JWT auth, BEFORE API key middleware)
+app.use('/api/admin', adminRouter);
+
+// API routes (API key auth + rate limit + usage tracking)
+app.use('/api', authMiddleware);
+app.use('/api', rateLimiter);
+app.use('/api', usageTracker);
+
 app.use('/api/wa', waRouter);
 app.use('/api/tg', tgRouter);
 
@@ -41,6 +62,15 @@ app.get('/api/status', (req, res) => {
   }
 });
 
+// SPA fallback — non-API routes serve index.html
+if (fs.existsSync(adminBuildPath)) {
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(path.join(adminBuildPath, 'index.html'));
+    }
+  });
+}
+
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server running at http://localhost:${PORT}`);
@@ -48,6 +78,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`  - GET  /api/status`);
   console.log(`  - /api/wa/*`);
   console.log(`  - /api/tg/*`);
+  console.log(`  - /api/admin/*  (Admin Panel API)`);
+
+  if (fs.existsSync(adminBuildPath)) {
+    console.log(`  - /  (Admin Panel UI)`);
+  } else {
+    console.log(`  - Admin Panel UI not built. Run: cd admin && npm run build`);
+  }
 
   // Auto-load WhatsApp sessions
   try {

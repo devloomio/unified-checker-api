@@ -6,7 +6,8 @@ const fs = require('fs');
 // ===================== MULTI SESSION MANAGER =====================
 
 const sessions = new Map(); // sessionId -> { client, status, name, phoneCodeHash, phone, checkedCount }
-const SESSION_DIR = path.join(__dirname, '..', 'sessions', 'tg');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const SESSION_DIR = path.join(DATA_DIR, 'sessions', 'tg');
 
 if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
 

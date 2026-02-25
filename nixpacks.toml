@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
+
+[phases.install]
+cmds = ["npm install", "cd admin && npm install"]
+
+[phases.build]
+cmds = ["cd admin && npm run build"]
+
+[start]
+cmd = "node src/index.js"
