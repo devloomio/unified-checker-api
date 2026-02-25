@@ -399,21 +399,23 @@ async function checkNumberWithSession(session, phone) {
                 sessionUsed: session.name,
             };
         }
-    }
 
-    session.checkedCount++;
-    return {
-        exists: false,
-        number: cleaned,
-        username: null,
-        firstName: '',
-        lastName: '',
-        userId: null,
-        profilePic: null,
-        lastSeen: null,
-        lastSeenLabel: null,
-        status: 'success',
-        sessionUsed: session.name,
+        // Error lain — log supaya bisa debug
+        console.error(`[TG CHECK ERROR] ${cleaned}: ${err.message}`);
+        session.checkedCount++;
+        return {
+            exists: false,
+            number: cleaned,
+            username: null,
+            firstName: '',
+            lastName: '',
+            userId: null,
+            profilePic: null,
+            lastSeen: null,
+            lastSeenLabel: null,
+            status: 'error',
+            error: err.message,
+            sessionUsed: session.name,
     };
 }
 
