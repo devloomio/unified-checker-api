@@ -49,7 +49,6 @@ router.get('/tg/credentials', (req, res) => {
   res.json({
     success: true,
     hasCredentials: !!(creds.apiId && creds.apiHash),
-    apiId: creds.apiId || null,
   });
 });
 

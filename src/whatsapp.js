@@ -32,6 +32,7 @@ async function createSession(sessionId, name = '') {
         qrBase64: null,
         name: name || sessionId,
         checkedCount: 0,
+        reconnectAttempts: 0,
     };
     sessions.set(sessionId, session);
 
@@ -59,6 +60,7 @@ async function createSession(sessionId, name = '') {
         if (connection === 'open') {
             session.status = 'connected';
             session.qrBase64 = null;
+            session.reconnectAttempts = 0;
             console.log(`[OK] Session "${session.name}" terhubung!`);
         }
 
@@ -72,9 +74,17 @@ async function createSession(sessionId, name = '') {
                 session.qrBase64 = null;
                 console.log(`[LOGOUT] Session "${session.name}" logout`);
             } else {
+                session.reconnectAttempts = (session.reconnectAttempts || 0) + 1;
+                const maxAttempts = 10;
+                if (session.reconnectAttempts > maxAttempts) {
+                    session.status = 'error';
+                    console.error(`[ERROR] Session "${session.name}" gagal reconnect setelah ${maxAttempts} percobaan`);
+                    return;
+                }
+                const delay = Math.min(3000 * Math.pow(2, session.reconnectAttempts - 1), 60000);
                 session.status = 'reconnecting';
-                console.log(`[RECONNECT] Session "${session.name}" reconnecting...`);
-                setTimeout(() => createSession(sessionId, session.name), 3000);
+                console.log(`[RECONNECT] Session "${session.name}" reconnecting in ${delay / 1000}s (attempt ${session.reconnectAttempts}/${maxAttempts})...`);
+                setTimeout(() => createSession(sessionId, session.name), delay);
             }
         }
     });
@@ -89,8 +99,8 @@ async function deleteSession(sessionId) {
     const session = sessions.get(sessionId);
     if (session) {
         if (session.sock) {
-            try { await session.sock.logout(); } catch (_) {}
-            try { session.sock.end(); } catch (_) {}
+            try { await session.sock.logout(); } catch (err) { console.warn(`[WA] Gagal logout session: ${err.message}`); }
+            try { session.sock.end(); } catch (err) { console.warn(`[WA] Gagal end socket: ${err.message}`); }
         }
         sessions.delete(sessionId);
     }
@@ -176,7 +186,9 @@ async function batchCheckWithSession(session, phones) {
             let profilePic = null;
             try {
                 profilePic = await session.sock.profilePictureUrl(waResult.jid, 'image');
-            } catch (_) {}
+            } catch (err) {
+                console.warn(`[WA] Gagal ambil foto profil ${waResult.jid}: ${err.message}`);
+            }
 
             session.checkedCount++;
             results.push({ exists: true, jid: waResult.jid, number: cleaned, profilePic, status: 'success', sessionUsed: session.name });
@@ -267,7 +279,9 @@ async function checkBulkStream(phones, onResult) {
                         let profilePic = null;
                         try {
                             profilePic = await session.sock.profilePictureUrl(waResult.jid, 'image');
-                        } catch (_) {}
+                        } catch (err) {
+                            console.warn(`[WA] Gagal ambil foto profil ${waResult.jid}: ${err.message}`);
+                        }
                         session.checkedCount++;
                         result = { index: originalIndex, exists: true, jid: waResult.jid, number: cleaned, profilePic, status: 'success', sessionUsed: session.name };
                     } else {

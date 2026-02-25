@@ -2,6 +2,10 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-key-in-production';
 
+if (!process.env.JWT_SECRET) {
+  console.warn('[WARN] JWT_SECRET not set in environment. Using default secret — NOT SAFE for production!');
+}
+
 function adminAuth(req, res, next) {
   // Get token from cookie or Authorization header
   const token = req.cookies?.admin_token ||

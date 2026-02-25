@@ -39,6 +39,24 @@ router.post('/login', async (req, res) => {
   res.json({ success: true, token, user: { id: user.id, username: user.username } });
 });
 
+// POST /refresh - Refresh JWT token (protected)
+router.post('/refresh', adminAuth, (req, res) => {
+  const token = jwt.sign(
+    { userId: req.adminUser.userId, username: req.adminUser.username },
+    adminAuth.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  res.cookie('admin_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+
+  res.json({ success: true, token });
+});
+
 // POST /logout
 router.post('/logout', (req, res) => {
   res.clearCookie('admin_token');

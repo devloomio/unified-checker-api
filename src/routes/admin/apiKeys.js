@@ -20,6 +20,9 @@ router.post('/', (req, res) => {
   if (!name) {
     return res.status(400).json({ success: false, message: 'Nama wajib diisi' });
   }
+  if (typeof rate_limit !== 'number' || rate_limit < 1 || rate_limit > 10000) {
+    return res.status(400).json({ success: false, message: 'rate_limit harus angka antara 1-10000' });
+  }
 
   const rawKey = generateApiKey();
   const keyHash = hashApiKey(rawKey);
@@ -67,7 +70,12 @@ router.put('/:id', (req, res) => {
   const values = [];
 
   if (name !== undefined) { updates.push('name = ?'); values.push(name); }
-  if (rate_limit !== undefined) { updates.push('rate_limit = ?'); values.push(rate_limit); }
+  if (rate_limit !== undefined) {
+    if (typeof rate_limit !== 'number' || rate_limit < 1 || rate_limit > 10000) {
+      return res.status(400).json({ success: false, message: 'rate_limit harus angka antara 1-10000' });
+    }
+    updates.push('rate_limit = ?'); values.push(rate_limit);
+  }
   if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active ? 1 : 0); }
 
   if (updates.length === 0) {

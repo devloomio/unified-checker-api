@@ -1,6 +1,6 @@
 # Unified Checker API Documentation
 
-Base URL: `http://localhost:3000`
+Base URL: `https://unified-checker-api-production.up.railway.app`
 
 ---
 

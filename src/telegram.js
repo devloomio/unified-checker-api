@@ -1,5 +1,6 @@
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
+const { computeCheck } = require('telegram/Password');
 const path = require('path');
 const fs = require('fs');
 
@@ -137,9 +138,10 @@ async function verifyPassword(sessionId, password) {
 
     try {
         const srpResult = await session.client.invoke(new Api.account.GetPassword());
+        const passwordSrp = await computeCheck(srpResult, password);
         const result = await session.client.invoke(
             new Api.auth.CheckPassword({
-                password: await session.client._computeCheck(srpResult, password),
+                password: passwordSrp,
             })
         );
 
@@ -162,7 +164,7 @@ async function verifyPassword(sessionId, password) {
 async function deleteSession(sessionId) {
     const session = sessions.get(sessionId);
     if (session && session.client) {
-        try { await session.client.disconnect(); } catch (_) {}
+        try { await session.client.disconnect(); } catch (err) { console.warn(`[TG] Gagal disconnect session: ${err.message}`); }
     }
     sessions.delete(sessionId);
 
@@ -362,7 +364,9 @@ async function checkNumberWithSession(session, phone) {
                         profilePic = 'data:image/jpeg;base64,' + Buffer.from(file).toString('base64');
                     }
                 }
-            } catch (_) {}
+            } catch (err) {
+                console.warn(`[TG] Gagal ambil foto profil: ${err.message}`);
+            }
 
             session.checkedCount++;
             const uid = user.id.toString();
@@ -416,7 +420,8 @@ async function checkNumberWithSession(session, phone) {
             status: 'error',
             error: err.message,
             sessionUsed: session.name,
-    };
+        };
+    }
 }
 
 /**

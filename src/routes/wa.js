@@ -81,6 +81,12 @@ router.post('/check-bulk', async (req, res) => {
     if (!numbers || !Array.isArray(numbers)) {
         return res.status(400).json({ success: false, message: '"numbers" harus array' });
     }
+    if (numbers.length === 0) {
+        return res.status(400).json({ success: false, message: 'Array numbers tidak boleh kosong' });
+    }
+    if (numbers.length > 5000) {
+        return res.status(400).json({ success: false, message: 'Maksimal 5000 nomor per request' });
+    }
 
     try {
         const results = await checkBulk(numbers);
@@ -106,6 +112,12 @@ router.post('/check-bulk-stream', async (req, res) => {
     const { numbers } = req.body;
     if (!numbers || !Array.isArray(numbers)) {
         return res.status(400).json({ success: false, message: '"numbers" harus array' });
+    }
+    if (numbers.length === 0) {
+        return res.status(400).json({ success: false, message: 'Array numbers tidak boleh kosong' });
+    }
+    if (numbers.length > 5000) {
+        return res.status(400).json({ success: false, message: 'Maksimal 5000 nomor per request' });
     }
 
     res.setHeader('Content-Type', 'text/event-stream');

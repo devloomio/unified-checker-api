@@ -19,6 +19,22 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Auto-refresh token every 12 hours
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.post('/admin/auth/refresh');
+        if (data.success && data.token) {
+          localStorage.setItem('admin_token', data.token);
+        }
+      } catch {
+        logout();
+      }
+    }, 12 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (username, password) => {
     const data = await api.post('/admin/auth/login', { username, password });
     if (data.success) {
