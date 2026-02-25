@@ -333,58 +333,82 @@ async function checkNumberWithSession(session, phone) {
         throw new Error('Format nomor tidak valid');
     }
 
+    // Helper: invoke with timeout (default 15s)
+    const invokeWithTimeout = (request, timeoutMs = 15000) => {
+        return Promise.race([
+            session.client.invoke(request),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Telegram API timeout')), timeoutMs)),
+        ]);
+    };
+
     try {
-        const result = await session.client.invoke(
+        const result = await invokeWithTimeout(
             new Api.contacts.ResolvePhone({ phone: cleaned })
         );
 
-        let profilePic = null;
         const user = result.users[0];
 
-        if (user) {
-            // Cek apakah akun dihapus
-            const isDeleted = !!(user.deleted);
-
-            // Parse last seen
-            const lastSeenInfo = parseLastSeen(user);
-
-            // Coba ambil foto profil
-            try {
-                const photos = await session.client.invoke(
-                    new Api.photos.GetUserPhotos({
-                        userId: user.id,
-                        offset: 0,
-                        maxId: 0,
-                        limit: 1,
-                    })
-                );
-                if (photos.photos && photos.photos.length > 0) {
-                    const file = await session.client.downloadProfilePhoto(user, { isBig: false });
-                    if (file) {
-                        profilePic = 'data:image/jpeg;base64,' + Buffer.from(file).toString('base64');
-                    }
-                }
-            } catch (err) {
-                console.warn(`[TG] Gagal ambil foto profil: ${err.message}`);
-            }
-
+        if (!user) {
             session.checkedCount++;
-            const uid = user.id.toString();
             return {
-                exists: true,
-                deleted: isDeleted,
+                exists: false,
                 number: cleaned,
-                username: user.username || null,
-                firstName: isDeleted ? 'Deleted Account' : (user.firstName || ''),
-                lastName: isDeleted ? '' : (user.lastName || ''),
-                userId: uid,
-                registeredAt: estimateRegistrationDate(uid),
-                profilePic,
-                ...lastSeenInfo,
+                username: null,
+                firstName: '',
+                lastName: '',
+                userId: null,
+                profilePic: null,
+                lastSeen: null,
+                lastSeenLabel: null,
                 status: 'success',
                 sessionUsed: session.name,
             };
         }
+
+        // Cek apakah akun dihapus
+        const isDeleted = !!(user.deleted);
+
+        // Parse last seen
+        const lastSeenInfo = parseLastSeen(user);
+
+        // Coba ambil foto profil
+        let profilePic = null;
+        try {
+            const photos = await invokeWithTimeout(
+                new Api.photos.GetUserPhotos({
+                    userId: user.id,
+                    offset: 0,
+                    maxId: 0,
+                    limit: 1,
+                }),
+                10000
+            );
+            if (photos.photos && photos.photos.length > 0) {
+                const file = await session.client.downloadProfilePhoto(user, { isBig: false });
+                if (file) {
+                    profilePic = 'data:image/jpeg;base64,' + Buffer.from(file).toString('base64');
+                }
+            }
+        } catch (err) {
+            console.warn(`[TG] Gagal ambil foto profil: ${err.message}`);
+        }
+
+        session.checkedCount++;
+        const uid = user.id.toString();
+        return {
+            exists: true,
+            deleted: isDeleted,
+            number: cleaned,
+            username: user.username || null,
+            firstName: isDeleted ? 'Deleted Account' : (user.firstName || ''),
+            lastName: isDeleted ? '' : (user.lastName || ''),
+            userId: uid,
+            registeredAt: estimateRegistrationDate(uid),
+            profilePic,
+            ...lastSeenInfo,
+            status: 'success',
+            sessionUsed: session.name,
+        };
     } catch (err) {
         // PHONE_NOT_OCCUPIED = nomor tidak terdaftar
         if (err.message.includes('PHONE_NOT_OCCUPIED') || err.message.includes('Could not find')) {
